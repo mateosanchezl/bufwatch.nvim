@@ -132,9 +132,10 @@ local function on_buf_leave()
 end
 
 function M.on_event(event)
-	if event.event == "BufEnter" then
+	local e = event.event
+	if e == "BufEnter" or e == "FocusGained" then
 		on_buf_enter()
-	elseif event.event == "BufLeave" then
+	elseif e == "BufLeave" or e == "FocusLost" then
 		on_buf_leave()
 	end
 end
