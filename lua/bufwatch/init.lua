@@ -99,18 +99,22 @@ local function sync_elapsed_time()
 	end
 
 	local elapsed = os.time() - file_data.last_start
-	print("Last elapsed: ", elapsed)
 	if elapsed > 0 then
-		local prev = file_data.total_time_s
 		file_data.total_time_s = file_data.total_time_s + elapsed
-		print("Updated total time from ", prev, " to ", file_data.total_time_s + elapsed)
 	end
 	file_data.last_start = nil
 end
 
+local function loadState()
+	local path = vim.fn.stdpath("data") .. "/bufwatch/state.json"
+	if vim.fn.filereadable(path) == 1 then
+		local data = table.concat(vim.fn.readfile(path))
+		state.projects = vim.json.decode(data)
+	end
+end
+
 local function on_buf_enter()
 	if not is_real_file(0) then
-		print("Buffer not detected as real, skipping: ", vim.api.nvim_buf_get_name(0))
 		return
 	end
 
@@ -131,13 +135,37 @@ local function on_buf_leave()
 	state.current_file_path = ""
 end
 
+local function persistState()
+	local dir = vim.fn.stdpath("data") .. "/bufwatch"
+	local path = dir .. "/state.json"
+	vim.fn.mkdir(dir, "p")
+	vim.fn.writefile({ vim.json.encode(state.projects) }, path)
+end
+
+local function on_vim_quit()
+	sync_elapsed_time()
+	persistState()
+end
+
+local function on_vim_enter()
+	if next(state.projects) == nil then
+		loadState()
+	end
+end
+
 function M.on_event(event)
 	local e = event.event
 	if e == "BufEnter" or e == "FocusGained" then
 		on_buf_enter()
 	elseif e == "BufLeave" or e == "FocusLost" then
 		on_buf_leave()
+	elseif e == "VimEnter" then
+		on_vim_enter()
+	elseif e == "VimLeave" then
+		on_vim_quit()
 	end
 end
+
+require("bufwatch.autocmds")
 
 return M
